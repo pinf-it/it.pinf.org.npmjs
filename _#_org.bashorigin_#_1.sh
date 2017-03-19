@@ -27,23 +27,18 @@ function EXPORTS_ensure {
                     process.exit(1);
                 }
 
-                function deepMerge(a, b) {
-                    // If neither is an object, return one of them:
-                    if (Object(a) !== a && Object(b) !== b) return b || a;
-                    // Replace remaining primitive by empty object/array
-                    if (Object(a) !== a) a = Array.isArray(b) ? [] : {};
-                    if (Object(b) !== b) b = Array.isArray(a) ? [] : {};
-                    // Treat arrays differently:
-                    if (Array.isArray(a) && Array.isArray(b)) {
-                        // Merging arrays is interpreted as concatenation of their deep clones:
-                        return [...a.map(v => deepMerge(v)), ...b.map(v => deepMerge(v))];
-                    } else {
-                        // Get the keys that exist in either object
-                        var keys = new Set([...Object.keys(a),...Object.keys(b)]);
-                        // Recurse and assign to new object
-                        return Object.assign({}, ...Array.from(keys,
-                            key => ({ [key]: deepMerge(a[key], b[key]) }) ));
+                function deepObjectExtend (target, source) {
+                    for (var prop in source) {
+                        if (source.hasOwnProperty(prop)) {
+                            if (target[prop] && typeof source[prop] === "object") {
+                                deepObjectExtend(target[prop], source[prop]);
+                            }
+                            else {
+                                target[prop] = source[prop];
+                            }
+                        }
                     }
+                    return target;
                 }
 
                 var descriptor = {};
@@ -51,7 +46,7 @@ function EXPORTS_ensure {
                     descriptor = JSON.parse(FS.readFileSync("package.json", "utf8"));
                 }
                 // TODO: Instead of pummeling existing versions use the highest one.
-                descriptor[setName] = deepMerge(descriptor[setName] || {}, declarations[setName]);
+                descriptor[setName] = deepObjectExtend(descriptor[setName] || {}, declarations[setName]);
 
                 // TODO: If no version specified for name use latest version.
 
