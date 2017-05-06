@@ -1,6 +1,6 @@
 #!/usr/bin/env bash.origin.script
 
-function EXPORTS_ensure {
+function PRIVATE_ensure {
 
     if [ "$1" == "dependencies" ]; then
 
@@ -19,8 +19,8 @@ function EXPORTS_ensure {
             BO_run_node --eval '
                 const FS = require("fs");
 
-                const declarations='$__ARG1__';
-                const setName="'$1'";
+                const setName = process.argv[1];
+                const declarations = JSON.parse(process.argv[2]);
 
                 if (!declarations[setName]) {
                     console.error("ERROR: Set name \"" + setName + "\" not found!");
@@ -51,7 +51,7 @@ function EXPORTS_ensure {
                 // TODO: If no version specified for name use latest version.
 
                 FS.writeFileSync("package.json", JSON.stringify(descriptor, null, 4), "utf8");
-            '
+            ' "$1" "$__ARG1__"
 
             # TODO: Checksum descriptor and write '.installed' file
             BO_run_npm install
@@ -63,3 +63,10 @@ function EXPORTS_ensure {
         exit 1
     fi
 }
+
+
+echo "TEST_MATCH_IGNORE>>>"
+pushd "$__CALLER_DIRNAME__" > /dev/null
+    PRIVATE_ensure dependencies
+popd > /dev/null
+echo "<<<TEST_MATCH_IGNORE"
