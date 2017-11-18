@@ -72,7 +72,11 @@ function PRIVATE_ensure {
 
                 # TODO: Checksum descriptor and write '.installed' file
                 # TODO: Suppress WARN messages
-                BO_run_npm install || installError
+                if BO_has "npm"; then
+                    npm install --production || installError
+                else
+                    BO_run_npm install --production || installError
+                fi
 
                 echo "<<<TEST_MATCH_IGNORE"
 
