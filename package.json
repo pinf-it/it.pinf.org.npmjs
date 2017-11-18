@@ -1,10 +1,13 @@
 {
     "name": "it.pinf.org.npmjs",
     "version": "0.1.1",
+    "pm": {
+        "publish": "npm"
+    },
     "dependencies": {
-        "bash.origin.test": "^0.1.24"
+        "bash.origin.workspace": "^0.2.6"
     },
     "scripts": {
-        "test": "BO_ROOT_SCRIPT_PATH=$(pwd)/node_modules/bash.origin/bash.origin bash.origin.test examples"
+        "test": "bash.origin.test examples"
     }
 }
