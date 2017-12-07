@@ -19,7 +19,13 @@ function PRIVATE_ensure {
 
             if [ ! -e ".installed.log" ] || ! grep -q "$__ARG1__" ".installed.log"; then
 
+                echo "TEST_MATCH_IGNORE>>>"
+
                 BO_run_recent_node --eval '
+                    // TODO: Relocate to "sourcemint"
+
+                    const LIB = require("bash.origin.workspace").LIB;
+                    const PATH = require("path");
                     const FS = require("fs");
 
                     const setName = process.argv[1];
@@ -54,14 +60,59 @@ function PRIVATE_ensure {
                     // TODO: If no version specified for name use latest version.
 
                     if (process.env.BO_VERBOSE) {
-                        console.log("[github.com~pinf-it~it.pinf.org.npmjs] descriptor:", descriptor);
+                        console.error("[github.com~pinf-it~it.pinf.org.npmjs] descriptor:", descriptor);
                     }
 
-                    FS.writeFileSync("package.json", JSON.stringify(descriptor, null, 4), "utf8");
+                    // Now check if we can find all dependencies without installing
+                    if (descriptor.dependencies) {
+                        if (!FS.existsSync("node_modules")) {
+                            FS.mkdirSync("node_modules");
+                        }
+                        Object.keys(descriptor.dependencies).forEach(function (name) {
+                            var binCommands = {};
+                            try {
+                                var path = require.resolve(name + "/package.json");
+                                console.log("Symlinking " + PATH.dirname(path) + " to " + (process.cwd() + "/node_modules/" + name));
+                                FS.symlinkSync(PATH.dirname(path), "node_modules/" + name);
+                                delete descriptor.dependencies[name];
+                            } catch (err) {
+                                try {
+                                    var path = LIB.resolve(name + "/package.json");
+                                    console.error("Symlinking " + PATH.dirname(path) + " to " + (process.cwd() + "/node_modules/" + name));
+                                    FS.symlinkSync(PATH.dirname(path), "node_modules/" + name);
+                                    delete descriptor.dependencies[name];
+                                    // See if we need to symlink a bin command
+                                    var subDesc = JSON.parse(FS.readFileSync(path, "utf8"));
+                                    if (subDesc.bin) {
+                                        Object.keys(subDesc.bin).forEach(function (name) {
+                                            binCommands[name] = PATH.join(path, "../../.bin", name);
+                                        });
+                                    }
+                                } catch (err) {}
+                            }
+                            if (Object.keys(binCommands).length > 0) {
+                                // Link bin commands
+                                if (!FS.existsSync("node_modules/.bin")) {
+                                    FS.mkdirSync("node_modules/.bin");
+                                }
+                                Object.keys(binCommands).forEach(function (name) {
+                                    console.error("Symlinking " + binCommands[name] + " to " + (process.cwd() + "/node_modules/.bin/" + name));
+                                    FS.symlinkSync(binCommands[name], "node_modules/.bin/" + name);                                
+                                });
+                            }
+                        });
+                    }
+                    if (Object.keys(descriptor.dependencies).length === 0) {
+                        console.error("All symlinked. No need to install:", process.cwd());
+                        // No need to install.
+                        if (FS.existsSync("package.json")) {
+                            FS.unlinkSync("package.json");
+                        }
+                    } else {
+                        FS.writeFileSync("package.json", JSON.stringify(descriptor, null, 4), "utf8");
+                    }
                 ' "$1" "$__ARG1__"
 
-
-                echo "TEST_MATCH_IGNORE>>>"
 
                 rm -f package-lock.json || true
 
@@ -70,16 +121,18 @@ function PRIVATE_ensure {
                     exit 1
                 }
 
-                # TODO: Checksum descriptor and write '.installed' file
-                # TODO: Suppress WARN messages
-                if BO_has "npm"; then
-                    npm install --production || installError
-                else
-                    BO_run_npm install --production || installError
+                if [ -e "package.json" ]; then
+
+                    # TODO: Checksum descriptor and write '.installed' file
+                    # TODO: Suppress WARN messages
+                    if BO_has "npm"; then
+                        npm install --production || installError
+                    else
+                        BO_run_npm install --production || installError
+                    fi
                 fi
 
                 echo "<<<TEST_MATCH_IGNORE"
-
 
                 echo "$__ARG1__" >> ".installed.log"
             fi

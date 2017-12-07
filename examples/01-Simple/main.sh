@@ -2,7 +2,7 @@
 
 depend {
     "npm": {
-        "@../..#s1": {
+        "@github.com/pinf-it/it.pinf.org.npmjs#s1": {
             "dependencies": {
                 "require.async": "^0.1.1"
             }
