@@ -69,26 +69,31 @@ function PRIVATE_ensure {
                             FS.mkdirSync("node_modules");
                         }
                         Object.keys(descriptor.dependencies).forEach(function (name) {
-                            var binCommands = {};
+                            var path = null;
                             try {
-                                var path = require.resolve(name + "/package.json");
+                                path = require.resolve(name + "/package.json");
                                 console.log("Symlinking " + PATH.dirname(path) + " to " + (process.cwd() + "/node_modules/" + name));
                                 FS.symlinkSync(PATH.dirname(path), "node_modules/" + name);
                                 delete descriptor.dependencies[name];
                             } catch (err) {
                                 try {
-                                    var path = LIB.resolve(name + "/package.json");
+                                    path = LIB.resolve(name + "/package.json");
                                     console.error("Symlinking " + PATH.dirname(path) + " to " + (process.cwd() + "/node_modules/" + name));
                                     FS.symlinkSync(PATH.dirname(path), "node_modules/" + name);
                                     delete descriptor.dependencies[name];
-                                    // See if we need to symlink a bin command
-                                    var subDesc = JSON.parse(FS.readFileSync(path, "utf8"));
-                                    if (subDesc.bin) {
-                                        Object.keys(subDesc.bin).forEach(function (name) {
-                                            binCommands[name] = PATH.join(path, "../../.bin", name);
-                                        });
-                                    }
-                                } catch (err) {}
+                                } catch (err) {
+                                    path = null;
+                                }
+                            }
+                            var binCommands = {};
+                            if (path) {
+                                // See if we need to symlink a bin command
+                                var subDesc = JSON.parse(FS.readFileSync(path, "utf8"));
+                                if (subDesc.bin) {
+                                    Object.keys(subDesc.bin).forEach(function (name) {
+                                        binCommands[name] = PATH.join(path, "../../.bin", name);
+                                    });
+                                }
                             }
                             if (Object.keys(binCommands).length > 0) {
                                 // Link bin commands
